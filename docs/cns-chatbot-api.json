@@ -1,0 +1,98 @@
+{
+	"info": {
+		"_postman_id": "b6a7b3c2-1234-4567-8910-abcdef123456",
+		"name": "Enterprise Hybrid Chatbot API",
+		"description": "Collection test API cho hệ thống Chatbot Hybrid (RAG + 1minAI/Gemini)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "1234567"
+	},
+	"item": [
+		{
+			"name": "Chat Message (REST)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"userId\": \"test_user_01\",\n    \"question\": \"Bạn có thể làm thơ lục bát không?\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/chat/message",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"chat",
+						"message"
+					]
+				},
+				"description": "Gửi tin nhắn chat tới Bot.\n\nPayload:\n- userId: ID người dùng (dùng để định tuyến).\n- question: Câu hỏi.\n- sessionId (Optional): Nếu không gửi, server tự tạo mới."
+			},
+			"response": []
+		},
+		{
+			"name": "Chat Message (With Session)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"userId\": \"test_user_01\",\n    \"sessionId\": \"<PASTE_SESSION_ID_HERE>\",\n    \"question\": \"Quy trình bảo hành thế nào?\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/chat/message",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"chat",
+						"message"
+					]
+				},
+				"description": "Tiếp tục hội thoại cũ bằng cách gửi kèm sessionId."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
