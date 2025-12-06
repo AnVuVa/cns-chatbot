@@ -1,42 +1,58 @@
-# cns-chatbot-api
-PHẦN 1: README.md
-Bạn hãy tạo file README.md ở thư mục gốc và dán nội dung sau vào. Tài liệu này hướng dẫn chi tiết từ việc lấy API Key đến chạy database.
+# 🤖 Enterprise Self-Learning Hybrid Chatbot
 
-Markdown
+![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
+![Supabase](https://img.shields.io/badge/Database-Supabase%20(pgvector)-3ECF8E)
+![Redis](https://img.shields.io/badge/Cache-Upstash%20Redis-red)
+![AI](https://img.shields.io/badge/AI-Gemini%20%2B%20GPT4o%20(1min)-blue)
 
-# Enterprise Self-Learning Hybrid Chatbot (Backend)
+Hệ thống **Backend Chatbot doanh nghiệp hiệu năng cao**, sử dụng kiến trúc **Hybrid RAG** (Retrieval-Augmented Generation). Hệ thống kết hợp sức mạnh tìm kiếm **Vector**, bộ nhớ đệm **Redis** và cơ chế **định tuyến AI thông minh (AI Router)** để tối ưu hóa chi phí và độ chính xác.
 
-Hệ thống Chatbot doanh nghiệp sử dụng kiến trúc Hybrid (RAG + AI Router), kết hợp giữa Google Gemini và 1minAI (GPT-4o), hỗ trợ tự động học hỏi và tối ưu chi phí.
+## 🌟 Tính năng nổi bật
 
-## 1. Yêu cầu hệ thống
-- Node.js v18 trở lên.
-- Tài khoản [Supabase](https://supabase.com) (Database & Vector Store).
-- Tài khoản [Upstash](https://upstash.com) (Redis Cache).
-- API Key từ [Google AI Studio](https://aistudio.google.com/) (Gemini).
-- API Key từ [1min.ai](https://1min.ai/).
+* **Phễu lọc 4 lớp (4-Layer Funnel):** Tối ưu tốc độ phản hồi và chi phí.
+    1.  **Layer 1 (Cache & Rules):** Phản hồi tức thì (<50ms) cho các câu hỏi lặp lại hoặc xã giao.
+    2.  **Layer 2 (RAG Search):** Tìm kiếm tri thức doanh nghiệp với **Strict Mode** (chống bịa đặt thông tin).
+    3.  **Layer 3 (AI Router):** Ưu tiên **GPT-4o (via 1minAI)** chất lượng cao, tự động Fallback sang **Gemini Flash** nếu lỗi.
+    4.  **Layer 4 (Self-Learning):** (Batch Job) Tự động học từ lịch sử chat để cập nhật tri thức (Future release).
+* **Smart Ingestion Pipeline:** Hỗ trợ nạp dữ liệu từ file `.txt`, `.pdf`, `.docx`, `.md` số lượng lớn, tự động cắt nhỏ (Chunking) và Vector hóa.
+* **Anti-Hallucination:** Cơ chế Prompt Engineering nghiêm ngặt, buộc AI trả lời **"Tôi không biết"** và cung cấp hotline nếu không tìm thấy thông tin trong tài liệu.
+* **Real-time:** Hỗ trợ giao tiếp qua **WebSocket (Socket.io)**.
 
-## 2. Cài đặt
+---
 
-Clone dự án và cài đặt dependencies:
+## 🛠 Yêu cầu hệ thống
+
+* **Runtime:** **Node.js v18** trở lên.
+* **Database:** Tài khoản **[Supabase](https://supabase.com)** (PostgreSQL + pgvector).
+* **Cache:** Tài khoản **[Upstash](https://upstash.com)** (Redis Serverless).
+* **AI Keys:**
+    * Google **Gemini API Key** (Dùng cho Embedding & Fallback).
+    * **1min.ai API Key** (Dùng cho Main Chat Model).
+
+---
+
+## 🚀 Cài đặt & Khởi chạy
+
+### 1. Clone & Install
 
 ```bash
 git clone <your-repo-url>
 cd enterprise-chatbot-backend
 npm install
-3. Cấu hình Environment (.env)
-Tạo file .env tại thư mục gốc và điền các thông tin sau:
+````
 
-Đoạn mã
+### 2\. Cấu hình Environment (`.env`)
 
+Tạo file `.env` tại thư mục gốc và điền đầy đủ thông tin:
+
+```env
 PORT=3000
 
-# SUPABASE (Database & Vector)
-# Lấy tại: Supabase Dashboard -> Project Settings -> API
+# SUPABASE CONFIG
 SUPABASE_URL=[https://your-project-id.supabase.co](https://your-project-id.supabase.co)
 SUPABASE_KEY=your-anon-key-here
 
-# UPSTASH (Redis Cache)
-# Lấy tại: Upstash Console -> Redis -> Details (REST API)
+# UPSTASH REDIS CONFIG
 UPSTASH_REDIS_REST_URL=[https://your-redis-url.upstash.io](https://your-redis-url.upstash.io)
 UPSTASH_REDIS_REST_TOKEN=your-redis-token-here
 
@@ -45,15 +61,17 @@ UPSTASH_REDIS_REST_TOKEN=your-redis-token-here
 GEMINI_API_KEY=AIzaSy...
 # Lấy tại: [https://1min.ai/user/api](https://1min.ai/user/api)
 ONEMIN_API_KEY=your-1min-api-key
-4. Thiết lập Database (Supabase)
-Truy cập SQL Editor trong Supabase Dashboard và chạy đoạn script sau để tạo bảng và hàm tìm kiếm Vector (Lưu ý: Vector size 768 cho Gemini):
+```
 
-SQL
+### 3\. Thiết lập Database (Supabase SQL)
 
--- 1. Kích hoạt Vector Extension
+Truy cập Supabase Dashboard \> **SQL Editor** và chạy script sau để khởi tạo DB với Vector size **768** (Chuẩn của Gemini Embedding):
+
+```sql
+-- Kích hoạt Vector Extension
 create extension if not exists vector;
 
--- 2. Bảng phiên chat
+-- Bảng phiên chat
 create table chat_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id varchar not null,
@@ -61,17 +79,17 @@ create table chat_sessions (
   created_at timestamptz default now()
 );
 
--- 3. Bảng tri thức (Knowledge Base)
+-- Bảng tri thức (Knowledge Base)
 create table knowledge_base (
   id bigint generated by default as identity primary key,
   content text not null,
-  embedding vector(768), -- Kích thước vector của Gemini Text-Embedding-004
+  embedding vector(768), -- Kích thước vector text-embedding-004
   source_type varchar(50),
   metadata jsonb default '{}'::jsonb,
   is_active boolean default true
 );
 
--- 4. Bảng lịch sử chat (Logs)
+-- Bảng lịch sử chat (Logs)
 create table chat_logs (
   id bigint generated by default as identity primary key,
   session_id uuid references chat_sessions(id),
@@ -85,7 +103,7 @@ create table chat_logs (
   created_at timestamptz default now()
 );
 
--- 5. Hàm tìm kiếm Vector (Quan trọng)
+-- Hàm tìm kiếm Vector (Match Documents)
 create or replace function match_documents (
   query_embedding vector(768),
   match_threshold float,
@@ -110,173 +128,119 @@ begin
   limit match_count;
 end;
 $$;
-5. Nạp dữ liệu tri thức (Ingestion)
-Tạo thư mục knowledge_data ở gốc dự án.
+```
 
-Copy các file tài liệu (.txt, .pdf, .docx, .md) vào thư mục này.
+### 📚 Quản lý dữ liệu tri thức (Ingestion)
 
-Chạy script để cắt nhỏ file và tạo vector:
+Hệ thống cung cấp tool để tự động nạp tài liệu vào **Knowledge Base**.
 
-Bash
+**Bước 1: Tạo thư mục chứa dữ liệu:**
 
-# Đảm bảo đã thêm script này vào package.json hoặc chạy trực tiếp:
-node scripts/ingest-text.js
-6. Khởi chạy Server
-Chạy server ở chế độ development (tự động restart khi sửa code):
+```bash
+mkdir knowledge_data
+```
 
-Bash
+**Bước 2: Copy file tài liệu** của bạn vào thư mục `knowledge_data`.
 
-npx nodemon src/server.js
-Server sẽ chạy tại: http://localhost:3000
+> Hỗ trợ: `.pdf`, `.docx`, `.txt`, `.md`.
+> Nên chia theo thư mục con để dễ quản lý (ví dụ: `knowledge_data/hr/policy.pdf`).
 
-7. Sử dụng API
-REST API
-Endpoint: POST /api/chat/message
+**Bước 3: Chạy script nạp dữ liệu:**
 
-Body:
+```bash
+npm run ingest
+```
 
-JSON
+> Script sẽ tự động đọc file, cắt nhỏ (chunking), tạo vector embedding qua **Gemini** và lưu vào Supabase.
 
-{
-  "userId": "user_123",
-  "question": "Quy trình đổi trả hàng?"
-}
-WebSocket (Socket.io)
-Event connect: join_room (gửi sessionId)
+### ▶️ Chạy Server
 
-Event send: send_message (gửi { userId, sessionId, question })
+**Chế độ Development** (Tự động restart khi sửa code)
 
-Event receive: receive_message
+```bash
+npm run dev
+```
 
+**Chế độ Production**
 
----
+```bash
+npm start
+```
 
-### PHẦN 2: CẬP NHẬT PACKAGE.JSON
-Để thuận tiện cho việc chạy lệnh, bạn hãy mở file `package.json` và bổ sung phần `scripts`:
+> Server sẽ khởi chạy tại: **http://localhost:3000**
+
+-----
+
+## 🔌 API Documentation
+
+### 1\. Gửi tin nhắn (Chat Message)
+
+  * **URL:** `POST /api/chat/message`
+  * **Headers:** `Content-Type: application/json`
+  * **Body:**
+
+<!-- end list -->
 
 ```json
-  "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "ingest": "node scripts/ingest-text.js",
-    "learn": "node scripts/daily-learning-job.js"
-  },
-Sau này bạn chỉ cần gõ npm run ingest hoặc npm run dev.
-
-PHẦN 3: POSTMAN COLLECTION (JSON)
-Dưới đây là mã JSON để Import vào Postman. Cách dùng:
-
-Copy nội dung bên dưới.
-
-Lưu thành file chatbot_api.postman_collection.json.
-
-Mở Postman -> Nút Import -> Kéo thả file này vào.
-
-JSON
-
 {
-	"info": {
-		"_postman_id": "b6a7b3c2-1234-4567-8910-abcdef123456",
-		"name": "Enterprise Hybrid Chatbot API",
-		"description": "Collection test API cho hệ thống Chatbot Hybrid (RAG + 1minAI/Gemini)",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "1234567"
-	},
-	"item": [
-		{
-			"name": "Chat Message (REST)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json",
-						"type": "text"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"userId\": \"test_user_01\",\n    \"question\": \"Bạn có thể làm thơ lục bát không?\"\n}"
-				},
-				"url": {
-					"raw": "{{base_url}}/api/chat/message",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"chat",
-						"message"
-					]
-				},
-				"description": "Gửi tin nhắn chat tới Bot.\n\nPayload:\n- userId: ID người dùng (dùng để định tuyến).\n- question: Câu hỏi.\n- sessionId (Optional): Nếu không gửi, server tự tạo mới."
-			},
-			"response": []
-		},
-		{
-			"name": "Chat Message (With Session)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json",
-						"type": "text"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"userId\": \"test_user_01\",\n    \"sessionId\": \"<PASTE_SESSION_ID_HERE>\",\n    \"question\": \"Quy trình bảo hành thế nào?\"\n}"
-				},
-				"url": {
-					"raw": "{{base_url}}/api/chat/message",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"chat",
-						"message"
-					]
-				},
-				"description": "Tiếp tục hội thoại cũ bằng cách gửi kèm sessionId."
-			},
-			"response": []
-		}
-	],
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:3000",
-			"type": "string"
-		}
-	]
+  "userId": "user_12345",
+  "sessionId": "optional-session-uuid",
+  "question": "Quy trình xin nghỉ phép như thế nào?"
 }
-Lời khuyên cuối cùng
-Nếu bạn muốn test tính năng Socket.io trên Postman (phiên bản mới nhất đã hỗ trợ):
+```
 
-Chọn New -> WebSocket Request.
+  * **Response Success:**
 
-Nhập URL: ws://localhost:3000.
+<!-- end list -->
 
-Tab Message, nhập JSON: 42["join_room", "session-id-demo"] (Format của Socket.io hơi đặc thù, nên test bằng Client JS hoặc trang Firecamp sẽ dễ hơn Postman cho WebSocket).
+```json
+{
+  "sessionId": "uuid-generated-by-server",
+  "answer": "Theo quy định, bạn cần làm đơn trên hệ thống ERP trước 2 ngày..."
+}
+```
+
+### 2\. WebSocket (Real-time)
+
+Sử dụng thư viện `socket.io-client`.
+
+  * **Connect:** `ws://localhost:3000`
+  * **Events:**
+      * Client emit `join_room`: Gửi `sessionId`.
+      * Client emit `send_message`: Gửi object `{ userId, sessionId, question }`.
+      * Server emit `receive_message`: Nhận object `{ answer, timestamp }`.
+
+-----
+
+## 📂 Cấu trúc dự án
+
+```plaintext
+enterprise-chatbot-backend/
+├── knowledge_data/        # Nơi chứa tài liệu gốc (PDF, Docx...)
+├── scripts/
+│   ├── ingest-text.js     # Script nạp dữ liệu (ETL)
+│   └── daily-learning.js  # Script tự học (Cron job)
+├── src/
+│   ├── config/            # Cấu hình DB, Redis
+│   ├── controllers/       # Xử lý request HTTP
+│   ├── providers/         # Các Class tích hợp AI (Gemini, 1min)
+│   ├── routes/            # Định nghĩa API Endpoint
+│   ├── services/          # Business Logic (Chat flow, RAG, Routing)
+│   ├── utils/             # Tiện ích
+│   ├── app.js             # Express App setup
+│   └── server.js          # Entry point (HTTP + Socket.io)
+├── .env                   # Biến môi trường
+├── package.json
+└── README.md
+```
+
+-----
+
+## 🛡 Disclaimer
+
+Dự án sử dụng các **API bên thứ 3** (Google Gemini, 1min.ai). Hãy đảm bảo tuân thủ **chính sách sử dụng** và **hạn mức (Quota)** của các nhà cung cấp này.
+
+```
+
+Would you like me to elaborate on the **Hybrid RAG architecture** used in this chatbot?
+```
