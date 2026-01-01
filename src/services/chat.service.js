@@ -1,13 +1,24 @@
 const redis = require('../config/redis');
 const supabase = require('../config/supabase');
-const ragService = require('./rag.service'); // Import service mới
+const ragService = require('./rag.service');
+const { logger } = require('../utils/logger');
 const GeminiProvider = require('../providers/gemini.provider');
 const OneMinProvider = require('../providers/onemin.provider');
+const MistralProvider = require('../providers/mistral.provider');
 
+// Initialize all providers
 const providers = {
     gemini: new GeminiProvider(),
-    onemin: new OneMinProvider()
+    onemin: new OneMinProvider(),
+    mistral: new MistralProvider()
 };
+
+// Get preferred provider from env, default to 'onemin'
+const PRIMARY_PROVIDER = process.env.LLM_PROVIDER || 'onemin';
+const FALLBACK_PROVIDER = process.env.LLM_FALLBACK_PROVIDER || 'gemini';
+
+logger.info('ChatService', `Primary LLM Provider: ${PRIMARY_PROVIDER}`);
+logger.info('ChatService', `Fallback LLM Provider: ${FALLBACK_PROVIDER}`);
 
 class ChatService {
     async processMessage(userId, sessionId, question) {
@@ -24,10 +35,11 @@ class ChatService {
         try {
             const cacheKey = `chat:${Buffer.from(question).toString('base64')}`;
 
-            // --- LỚP 1: CACHING & RULES ---
-            // Check Redis
+            // --- LỚP 1: CACHING ---
+            // Check Redis for cached response
             const cachedAnswer = await redis.get(cacheKey);
             if (cachedAnswer) {
+                logger.info('ChatService', 'Cache hit', { cacheKey: cacheKey.substring(0, 50) });
                 logData.handled_by_layer = 1;
                 logData.provider = 'redis_cache';
                 logData.bot_response = cachedAnswer;
@@ -35,73 +47,66 @@ class ChatService {
                 return cachedAnswer;
             }
 
-            // Check Rules (Xã giao)
-            if (/^(hi|hello|chào|xin chào)$/i.test(question)) {
-                const greeting = "Chào bạn! Tôi là trợ lý ảo hỗ trợ doanh nghiệp. Tôi chỉ có thể trả lời các câu hỏi nằm trong phạm vi tài liệu hệ thống.";
-                logData.handled_by_layer = 1;
-                logData.provider = 'rule_base';
-                logData.bot_response = greeting;
-                await this.saveLog(logData, startTime);
-                return greeting;
+            // --- LỚP 2: RAG SEARCH ---
+            // Tìm kiếm thông tin liên quan trong knowledge base
+            let documents = [];
+            try {
+                documents = await ragService.searchKnowledgeBase(question, 0.4);
+                logger.info('ChatService', `RAG found ${documents.length} relevant documents`);
+            } catch (ragError) {
+                logger.warn('ChatService', 'RAG search failed, continuing without context', { error: ragError.message });
             }
 
-            // --- LỚP 2: RAG SEARCH (STRICT MODE) ---
-            
-            // Tìm kiếm với ngưỡng thấp nhất chấp nhận được (ví dụ 0.4)
-            // Nếu dưới mức này -> Câu hỏi không liên quan đến doanh nghiệp
-            const documents = await ragService.searchKnowledgeBase(question, 0.4);
-
-            // CASE 1: Hoàn toàn không tìm thấy thông tin liên quan
-            if (documents.length === 0) {
-                const fallback = ragService.getFallbackResponse();
-                logData.handled_by_layer = 2;
-                logData.provider = 'fallback_system';
-                logData.bot_response = fallback;
-                
-                // Không cache câu trả lời này lâu (hoặc không cache)
-                await this.saveLog(logData, startTime);
-                return fallback;
-            }
-
-            // CASE 2: Tìm thấy, nhưng có 1 kết quả cực kỳ chính xác (> 0.85) -> Trả lời ngay (tùy chọn)
-            // Ở đây ta vẫn nên đưa qua AI để rephrase cho tự nhiên, trừ khi muốn tiết kiệm tối đa.
-            // Để hệ thống "mượt", ta sẽ gom context và đẩy sang Lớp 3.
-
-            // Chuẩn bị Context
+            // Chuẩn bị Context (có thể rỗng - LLM sẽ xử lý)
             const contextText = ragService.formatContext(documents);
 
-            // --- LỚP 3: AI GENERATION (WITH STRICT PROMPT) ---
-            
-            // Ưu tiên 1minAI
-            let providerName = 'onemin'; 
+            // Đánh dấu layer dựa trên có context hay không
+            logData.handled_by_layer = documents.length > 0 ? 2 : 3;
+
+            // --- LỚP 3: AI GENERATION ---
+            // LLM xử lý tất cả - kể cả greetings và khi không có context
+
+            let providerName = PRIMARY_PROVIDER;
             let responseText = "";
 
             try {
-                responseText = await providers['onemin'].generateResponse(question, contextText);
+                // Try primary provider
+                if (!providers[providerName]) {
+                    throw new Error(`Provider '${providerName}' not available`);
+                }
+                responseText = await providers[providerName].generateResponse(question, contextText);
             } catch (err) {
-                console.error(`1minAI failed, switch to Gemini. Error: ${err.message}`);
-                providerName = 'gemini';
-                responseText = await providers['gemini'].generateResponse(question, contextText);
+                logger.warn('ChatService', `${PRIMARY_PROVIDER} failed, switching to ${FALLBACK_PROVIDER}`, { error: err.message });
+                providerName = FALLBACK_PROVIDER;
+
+                if (!providers[providerName]) {
+                    throw new Error(`Fallback provider '${providerName}' not available`);
+                }
+                responseText = await providers[providerName].generateResponse(question, contextText);
             }
 
             logData.handled_by_layer = 3;
             logData.provider = providerName;
             logData.bot_response = responseText;
-            
+
             // Cache kết quả
             await redis.set(cacheKey, responseText, { ex: 3600 });
             await this.saveLog(logData, startTime);
             return responseText;
 
         } catch (error) {
-            console.error("System Error:", error);
+            logger.error('ChatService', 'System Error', { error: error.message, stack: error.stack });
             return "Hệ thống đang bận, vui lòng thử lại sau.";
         }
     }
 
     async saveLog(logData, startTime) {
         logData.latency_ms = Date.now() - startTime;
-        await supabase.from('chat_logs').insert(logData);
+        try {
+            await supabase.from('chat_logs').insert(logData);
+        } catch (error) {
+            logger.error('ChatService', 'Failed to save log to database', { error: error.message });
+        }
     }
 }
 

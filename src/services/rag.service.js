@@ -1,54 +1,85 @@
 const supabase = require('../config/supabase');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { RAG_FALLBACK_RESPONSE } = require('../config/prompts');
+const { logger } = require('../utils/logger');
 
-// Cấu hình thông tin liên hệ
-const CONTACT_INFO = `
-Nếu vấn đề chưa được giải quyết, vui lòng liên hệ trực tiếp:
-- Hotline: 1900 1234 (Nhánh 1)
-- Email: support@enterprise.com
-- Giờ làm việc: 08:00 - 17:30 (Thứ 2 - Thứ 6)
-`;
+// Dynamic import of embedding providers
+const GeminiProvider = require('../providers/gemini.provider');
+const MistralProvider = require('../providers/mistral.provider');
 
-// Khởi tạo Gemini cho Embedding
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Get embedding provider from env, default to 'gemini'
+const EMBEDDING_PROVIDER = process.env.EMBEDDING_PROVIDER || 'gemini';
 
 class RagService {
     constructor() {
-        this.embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        // Initialize the selected embedding provider
+        this.provider = null;
+        this.initProvider();
     }
 
-    // 1. Tạo Embedding
+    initProvider() {
+        switch (EMBEDDING_PROVIDER) {
+            case 'mistral':
+                this.provider = new MistralProvider();
+                logger.info('RAGService', 'Using Mistral embeddings (1024 dimensions)');
+                break;
+            case 'gemini':
+            default:
+                this.provider = new GeminiProvider();
+                logger.info('RAGService', 'Using Gemini embeddings (768 dimensions)');
+                break;
+        }
+    }
+
+    /**
+     * Create embedding using configured provider
+     * @param {string} text - Text to embed
+     * @returns {Promise<number[]>} - Embedding vector
+     */
     async createEmbedding(text) {
         try {
-            const result = await this.embeddingModel.embedContent(text);
-            return result.embedding.values;
+            return await this.provider.generateEmbedding(text);
         } catch (error) {
-            console.error("Embedding Error:", error);
+            logger.error('RAGService', 'Embedding Error', { error: error.message });
             throw error;
         }
     }
 
-    // 2. Tìm kiếm thông tin (Core Logic)
+    /**
+     * Search knowledge base using vector similarity
+     * @param {string} question - User question
+     * @param {number} threshold - Similarity threshold (0-1)
+     * @returns {Promise<Array>} - Matching documents
+     */
     async searchKnowledgeBase(question, threshold = 0.5) {
         const embedding = await this.createEmbedding(question);
 
         const { data: documents, error } = await supabase.rpc('match_documents', {
             query_embedding: embedding,
-            match_threshold: threshold, // Chỉ lấy các đoạn văn bản có liên quan cao
+            match_threshold: threshold,
             match_count: 3
         });
 
-        if (error) throw error;
+        if (error) {
+            logger.error('RAGService', 'Search Error', { error: error.message });
+            throw error;
+        }
 
         return documents || [];
     }
 
-    // 3. Trả về thông tin fallback
+    /**
+     * Get fallback response when no documents found
+     * @returns {string}
+     */
     getFallbackResponse() {
-        return `Xin lỗi, tôi không tìm thấy thông tin liên quan trong hệ thống tri thức nội bộ.\n\n${CONTACT_INFO}`;
+        return RAG_FALLBACK_RESPONSE;
     }
 
-    // Helper: Gom nội dung các documents thành 1 đoạn context text
+    /**
+     * Format documents into context string
+     * @param {Array} documents - Retrieved documents
+     * @returns {string}
+     */
     formatContext(documents) {
         if (!documents || documents.length === 0) return "";
         return documents.map(doc => `- ${doc.content}`).join("\n");

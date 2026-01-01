@@ -3,19 +3,37 @@
 ![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
 ![Supabase](https://img.shields.io/badge/Database-Supabase%20(pgvector)-3ECF8E)
 ![Redis](https://img.shields.io/badge/Cache-Upstash%20Redis-red)
-![AI](https://img.shields.io/badge/AI-Gemini%20%2B%20GPT4o%20(1min)-blue)
+![AI](https://img.shields.io/badge/AI-Mistral%20%7C%20Gemini%20%7C%201min.ai-blue)
+![Messenger](https://img.shields.io/badge/Channel-Facebook%20Messenger-0084FF)
 
 Hệ thống **Backend Chatbot doanh nghiệp hiệu năng cao**, sử dụng kiến trúc **Hybrid RAG** (Retrieval-Augmented Generation). Hệ thống kết hợp sức mạnh tìm kiếm **Vector**, bộ nhớ đệm **Redis** và cơ chế **định tuyến AI thông minh (AI Router)** để tối ưu hóa chi phí và độ chính xác.
 
 ## 🌟 Tính năng nổi bật
 
-* **Phễu lọc 4 lớp (4-Layer Funnel):** Tối ưu tốc độ phản hồi và chi phí.
-    1.  **Layer 1 (Cache & Rules):** Phản hồi tức thì (<50ms) cho các câu hỏi lặp lại hoặc xã giao.
-    2.  **Layer 2 (RAG Search):** Tìm kiếm tri thức doanh nghiệp với **Strict Mode** (chống bịa đặt thông tin).
-    3.  **Layer 3 (AI Router):** Ưu tiên **GPT-4o (via 1minAI)** chất lượng cao, tự động Fallback sang **Gemini Flash** nếu lỗi.
-    4.  **Layer 4 (Self-Learning):** (Batch Job) Tự động học từ lịch sử chat để cập nhật tri thức (Future release).
-* **Smart Ingestion Pipeline:** Hỗ trợ nạp dữ liệu từ file `.txt`, `.pdf`, `.docx`, `.md` số lượng lớn, tự động cắt nhỏ (Chunking) và Vector hóa.
-* **Anti-Hallucination:** Cơ chế Prompt Engineering nghiêm ngặt, buộc AI trả lời **"Tôi không biết"** và cung cấp hotline nếu không tìm thấy thông tin trong tài liệu.
+* **Phễu lọc 3 lớp (3-Layer Funnel):** Tối ưu tốc độ phản hồi và chi phí.
+    1.  **Layer 1 (Cache):** Phản hồi tức thì (<50ms) cho các câu hỏi đã được cache.
+    2.  **Layer 2 (RAG Search):** Tìm kiếm tri thức doanh nghiệp với Vector similarity.
+    3.  **Layer 3 (AI Generation):** LLM xử lý với ngữ cảnh từ RAG, có fallback tự động.
+
+* **Multi-Provider AI Support:**
+    - 🆕 **Mistral AI** - LLM + Embeddings
+    - **Google Gemini** - LLM + Embeddings  
+    - **1min.ai** - Multi-model gateway (GPT-4o, Gemini, etc.)
+
+* **Facebook Messenger Integration:** 🆕
+    - Webhook verification & event handling
+    - Real-time message processing
+    - Typing indicators
+
+* **Smart Ingestion Pipeline:** Hỗ trợ nạp dữ liệu từ file `.txt`, `.pdf`, `.docx`, `.md`.
+
+* **Customizable Bot Persona:** Prompt chuyên nghiệp, có thể tùy chỉnh trong `src/config/prompts.js`.
+
+* **Comprehensive Logging System:** 🆕
+    - `logs/request_<date>.log` - HTTP requests
+    - `logs/system_log_<date>.log` - System events
+    - `logs/llm_<date>.log` - LLM input/output
+
 * **Real-time:** Hỗ trợ giao tiếp qua **WebSocket (Socket.io)**.
 
 ---
@@ -25,9 +43,11 @@ Hệ thống **Backend Chatbot doanh nghiệp hiệu năng cao**, sử dụng ki
 * **Runtime:** **Node.js v18** trở lên.
 * **Database:** Tài khoản **[Supabase](https://supabase.com)** (PostgreSQL + pgvector).
 * **Cache:** Tài khoản **[Upstash](https://upstash.com)** (Redis Serverless).
-* **AI Keys:**
-    * Google **Gemini API Key** (Dùng cho Embedding & Fallback).
-    * **1min.ai API Key** (Dùng cho Main Chat Model).
+* **AI Keys:** (Ít nhất 1 provider)
+    * **Mistral AI** - [console.mistral.ai](https://console.mistral.ai)
+    * **Google Gemini** - [aistudio.google.com](https://aistudio.google.com/app/apikey)
+    * **1min.ai** - [1min.ai/user/api](https://1min.ai/user/api)
+* **Facebook App** (Optional): Cho Messenger integration.
 
 ---
 
@@ -37,35 +57,62 @@ Hệ thống **Backend Chatbot doanh nghiệp hiệu năng cao**, sử dụng ki
 
 ```bash
 git clone <your-repo-url>
-cd enterprise-chatbot-backend
+cd cns-chatbot-api
 npm install
-````
+```
 
-### 2\. Cấu hình Environment (`.env`)
+### 2. Cấu hình Environment (`.env`)
 
-Tạo file `.env` tại thư mục gốc và điền đầy đủ thông tin:
+Tạo file `.env` từ template:
+
+```bash
+cp .env.example .env
+```
+
+Cấu hình các biến môi trường:
 
 ```env
 PORT=3000
 
-# SUPABASE CONFIG
-SUPABASE_URL=[https://your-project-id.supabase.co](https://your-project-id.supabase.co)
+# === DATABASE ===
+SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_KEY=your-anon-key-here
 
-# UPSTASH REDIS CONFIG
-UPSTASH_REDIS_REST_URL=[https://your-redis-url.upstash.io](https://your-redis-url.upstash.io)
+# === CACHE ===
+UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-redis-token-here
 
-# AI PROVIDERS
-# Lấy tại: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+# === AI PROVIDERS CONFIG ===
+# Choose your preferred LLM provider: 'onemin' | 'gemini' | 'mistral'
+LLM_PROVIDER=mistral
+LLM_FALLBACK_PROVIDER=gemini
+
+# Choose your embedding provider: 'gemini' | 'mistral'
+EMBEDDING_PROVIDER=gemini
+
+# === MISTRAL AI ===
+MISTRAL_API_KEY=your-mistral-api-key
+MISTRAL_MODEL=mistral-small-latest
+
+# === GOOGLE GEMINI ===
 GEMINI_API_KEY=AIzaSy...
-# Lấy tại: [https://1min.ai/user/api](https://1min.ai/user/api)
+GEMINI_MODEL=gemini-2.5-flash
+
+# === 1MIN.AI ===
 ONEMIN_API_KEY=your-1min-api-key
+ONEMIN_MODEL=gemini-2.5-flash
+
+# === FACEBOOK MESSENGER ===
+FB_PAGE_ACCESS_TOKEN=your_page_access_token
+FB_VERIFY_TOKEN=my_secret_verify_token_2024
+FB_APP_SECRET=your_app_secret
 ```
 
-### 3\. Thiết lập Database (Supabase SQL)
+### 3. Thiết lập Database (Supabase SQL)
 
-Truy cập Supabase Dashboard \> **SQL Editor** và chạy script sau để khởi tạo DB với Vector size **768** (Chuẩn của Gemini Embedding):
+Truy cập Supabase Dashboard > **SQL Editor** và chạy các script:
+
+**a. Core Tables:**
 
 ```sql
 -- Kích hoạt Vector Extension
@@ -83,7 +130,7 @@ create table chat_sessions (
 create table knowledge_base (
   id bigint generated by default as identity primary key,
   content text not null,
-  embedding vector(768), -- Kích thước vector text-embedding-004
+  embedding vector(768), -- Gemini: 768, Mistral: 1024
   source_type varchar(50),
   metadata jsonb default '{}'::jsonb,
   is_active boolean default true
@@ -130,58 +177,70 @@ end;
 $$;
 ```
 
-### 📚 Quản lý dữ liệu tri thức (Ingestion)
+**b. Messenger Tables (Optional):**
 
-Hệ thống cung cấp tool để tự động nạp tài liệu vào **Knowledge Base**.
+```sql
+-- Run: scripts/messenger-schema.sql
+CREATE TABLE IF NOT EXISTS messenger_logs (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    psid VARCHAR NOT NULL,
+    message_type VARCHAR(20),
+    message_text TEXT,
+    response_text TEXT,
+    latency_ms INT,
+    event_type VARCHAR(50) DEFAULT 'message',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-**Bước 1: Tạo thư mục chứa dữ liệu:**
+CREATE INDEX IF NOT EXISTS idx_messenger_logs_psid ON messenger_logs(psid);
+CREATE INDEX IF NOT EXISTS idx_messenger_logs_created_at ON messenger_logs(created_at);
+```
+
+---
+
+## 📚 Quản lý dữ liệu tri thức (Ingestion)
+
+**Bước 1:** Tạo thư mục và thêm tài liệu:
 
 ```bash
 mkdir knowledge_data
+# Copy các file .pdf, .docx, .txt, .md vào thư mục này
 ```
 
-**Bước 2: Copy file tài liệu** của bạn vào thư mục `knowledge_data`.
-
-> Hỗ trợ: `.pdf`, `.docx`, `.txt`, `.md`.
-> Nên chia theo thư mục con để dễ quản lý (ví dụ: `knowledge_data/hr/policy.pdf`).
-
-**Bước 3: Chạy script nạp dữ liệu:**
+**Bước 2:** Chạy script nạp dữ liệu:
 
 ```bash
 npm run ingest
 ```
 
-> Script sẽ tự động đọc file, cắt nhỏ (chunking), tạo vector embedding qua **Gemini** và lưu vào Supabase.
+> Script sẽ tự động đọc file, cắt nhỏ (chunking), tạo vector embedding và lưu vào Supabase.
 
-### ▶️ Chạy Server
+---
 
-**Chế độ Development** (Tự động restart khi sửa code)
+## ▶️ Chạy Server
 
+**Development** (Auto-restart):
 ```bash
 npm run dev
 ```
 
-**Chế độ Production**
-
+**Production**:
 ```bash
 npm start
 ```
 
-> Server sẽ khởi chạy tại: **http://localhost:3000**
+> Server chạy tại: **http://localhost:3000**
 
------
+---
 
 ## 🔌 API Documentation
 
-### 1\. Gửi tin nhắn (Chat Message)
+### 1. Chat Message
 
-  * **URL:** `POST /api/chat/message`
-  * **Headers:** `Content-Type: application/json`
-  * **Body:**
+```http
+POST /api/chat/message
+Content-Type: application/json
 
-<!-- end list -->
-
-```json
 {
   "userId": "user_12345",
   "sessionId": "optional-session-uuid",
@@ -189,58 +248,113 @@ npm start
 }
 ```
 
-  * **Response Success:**
+### 2. Statistics
 
-<!-- end list -->
-
-```json
-{
-  "sessionId": "uuid-generated-by-server",
-  "answer": "Theo quy định, bạn cần làm đơn trên hệ thống ERP trước 2 ngày..."
-}
+```http
+GET /api/stats/overview      # Thống kê tổng quan
+GET /api/stats/recent        # Lịch sử chat gần đây
+GET /api/stats/messenger     # Thống kê Messenger
 ```
 
-### 2\. WebSocket (Real-time)
+### 3. Messenger Webhook
 
-Sử dụng thư viện `socket.io-client`.
+```http
+GET  /webhook/messenger      # Verification
+POST /webhook/messenger      # Receive messages
+```
 
-  * **Connect:** `ws://localhost:3000`
-  * **Events:**
-      * Client emit `join_room`: Gửi `sessionId`.
-      * Client emit `send_message`: Gửi object `{ userId, sessionId, question }`.
-      * Server emit `receive_message`: Nhận object `{ answer, timestamp }`.
+### 4. WebSocket (Real-time)
 
------
+```javascript
+const socket = io('ws://localhost:3000');
+
+socket.emit('join_room', sessionId);
+socket.emit('send_message', { userId, sessionId, question });
+socket.on('receive_message', ({ answer, timestamp }) => {});
+```
+
+---
 
 ## 📂 Cấu trúc dự án
 
 ```plaintext
-enterprise-chatbot-backend/
-├── knowledge_data/        # Nơi chứa tài liệu gốc (PDF, Docx...)
+cns-chatbot-api/
+├── knowledge_data/           # Tài liệu gốc (PDF, Docx...)
+├── logs/                     # Log files (auto-generated)
+│   ├── request_*.log
+│   ├── system_log_*.log
+│   └── llm_*.log
 ├── scripts/
-│   ├── ingest-text.js     # Script nạp dữ liệu (ETL)
-│   └── daily-learning.js  # Script tự học (Cron job)
+│   ├── ingest-text.js        # Script nạp dữ liệu
+│   ├── daily-learning-job.js # Script tự học (Cron job)
+│   └── messenger-schema.sql  # SQL cho Messenger tables
 ├── src/
-│   ├── config/            # Cấu hình DB, Redis
-│   ├── controllers/       # Xử lý request HTTP
-│   ├── providers/         # Các Class tích hợp AI (Gemini, 1min)
-│   ├── routes/            # Định nghĩa API Endpoint
-│   ├── services/          # Business Logic (Chat flow, RAG, Routing)
-│   ├── utils/             # Tiện ích
-│   ├── app.js             # Express App setup
-│   └── server.js          # Entry point (HTTP + Socket.io)
-├── .env                   # Biến môi trường
+│   ├── adapters/             # Platform adapters (Messenger)
+│   ├── config/
+│   │   ├── env.js
+│   │   ├── prompts.js        # 🆕 Centralized prompts
+│   │   ├── redis.js
+│   │   └── supabase.js
+│   ├── controllers/
+│   ├── providers/
+│   │   ├── ai.interface.js
+│   │   ├── gemini.provider.js
+│   │   ├── mistral.provider.js  # 🆕
+│   │   └── onemin.provider.js
+│   ├── routes/
+│   │   ├── chat.routes.js
+│   │   ├── messenger.routes.js
+│   │   └── stats.routes.js
+│   ├── services/
+│   │   ├── chat.service.js
+│   │   ├── messenger.service.js
+│   │   └── rag.service.js
+│   ├── utils/
+│   │   └── logger.js         # 🆕 Logging utility
+│   ├── app.js
+│   └── server.js
+├── .env
+├── .env.example
 ├── package.json
 └── README.md
 ```
 
------
+---
+
+## 🎨 Tùy chỉnh Bot Persona
+
+Chỉnh sửa file `src/config/prompts.js` để thay đổi:
+- Phong cách trả lời (chuyên nghiệp/thân thiện)
+- Thông tin liên hệ hỗ trợ
+- Nguyên tắc xử lý câu hỏi
+- Hành vi xử lý câu hỏi
+
+---
+
+## 📝 Changelog
+
+### v1.1.0 (2026-01-01)
+- 🆕 **Facebook Messenger Integration** - Webhook, message handling
+- 🆕 **Mistral AI Provider** - LLM + Embeddings support
+- 🆕 **Configurable Provider Selection** - Via environment variables
+- 🆕 **Centralized Prompts** - Easy customization in `prompts.js`
+- 🆕 **Comprehensive Logging** - Request, system, and LLM logs
+- 🆕 **Customizable Bot Persona** - Professional enterprise assistant
+
+### v1.0.0
+- Initial release with Gemini + 1min.ai
+- RAG with Supabase pgvector
+- Redis caching layer
+- WebSocket real-time support
+
+---
 
 ## 🛡 Disclaimer
 
-Dự án sử dụng các **API bên thứ 3** (Google Gemini, 1min.ai). Hãy đảm bảo tuân thủ **chính sách sử dụng** và **hạn mức (Quota)** của các nhà cung cấp này.
+Dự án sử dụng các **API bên thứ 3** (Mistral AI, Google Gemini, 1min.ai, Facebook). Hãy đảm bảo tuân thủ **chính sách sử dụng** và **hạn mức (Quota)** của các nhà cung cấp này.
 
-```
+---
 
-Would you like me to elaborate on the **Hybrid RAG architecture** used in this chatbot?
-```
+## 📄 License
+
+MIT License
