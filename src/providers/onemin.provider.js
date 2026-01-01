@@ -1,34 +1,17 @@
 const axios = require("axios");
 const IAIProvider = require("./ai.interface");
+const { getChatPrompt } = require("../config/prompts");
+const { logger } = require("../utils/logger");
 
 class OneMinProvider extends IAIProvider {
   constructor() {
     super();
-    this.model = "gemini-2.5-flash"; //gemini-2.5-flash || gpt-4o
+    this.model = process.env.ONEMIN_MODEL || "gemini-2.5-flash"; //gemini-2.5-flash || gpt-4o
   }
 
   async generateResponse(userQuestion, context) {
-    const hackPrompt = `
-    [SYSTEM KNOWLEDGE BASE]
-    ${context}
-    
-    [USER QUESTION]
-    ${userQuestion}
-    
-    [ROLE]
-    You are a strictly regulated Customer Support Bot.
-    
-    [STRICT INSTRUCTIONS]
-    1. ONLY use information provided in the [SYSTEM KNOWLEDGE BASE] above to answer.
-    2. If the answer is NOT found in the Knowledge Base:
-       - Do NOT invent an answer.
-       - Do NOT use your outside general knowledge (e.g., do not write poems, code, or math unless it's in the docs).
-       - Roles: Just politely say: "Xin lỗi, hiện tại tôi chưa có thông tin về vấn đề này trong tài liệu hệ thống. Bạn vui lòng liên hệ nhân viên hỗ trợ."
-    3. FORMATTING:
-       - No Subject line. No "Dear...". No "Best regards...".
-       - Language: Vietnamese.
-       - Tone: Professional, helpful, concise.
-    `;
+    const prompt = getChatPrompt(userQuestion, context);
+    const startTime = Date.now();
 
     const payload = {
       type: "CONTENT_GENERATOR_EMAIL_REPLY",
@@ -37,12 +20,12 @@ class OneMinProvider extends IAIProvider {
       promptObject: {
         tone: "professional",
         language: "Vietnamese",
-        prompt: hackPrompt,
+        prompt: prompt,
       },
     };
 
     try {
-      console.log(`[1minAI] Sending request...`);
+      logger.info('1minAI', `Sending request with model: ${this.model}`);
 
       const response = await axios.post(
         "https://api.1min.ai/api/features",
@@ -59,43 +42,44 @@ class OneMinProvider extends IAIProvider {
       let rawData = response.data;
 
       // 2. Xử lý trường hợp API trả về chuỗi JSON (Double serialized)
-      // Ví dụ: "{\"aiRecord\": ...}"
       if (typeof rawData === "string") {
         try {
           rawData = JSON.parse(rawData);
         } catch (e) {
-          console.log("[1minAI] Response is a plain string, using directly.");
+          logger.info('1minAI', 'Response is a plain string, using directly');
         }
       }
 
-      // 3. DEBUG: In ra cấu trúc cấp 1 để kiểm tra nếu vẫn lỗi
-      // console.log("[1minAI] Parsed Data Keys:", Object.keys(rawData));
-
-      // 4. TRÍCH XUẤT DỮ LIỆU (Deep Extraction)
-      // Đường dẫn: aiRecord -> aiRecordDetail -> resultObject -> [0]
+      // 3. TRÍCH XUẤT DỮ LIỆU (Deep Extraction)
       const extractedText =
         rawData?.aiRecord?.aiRecordDetail?.resultObject?.[0];
 
+      const duration = Date.now() - startTime;
+
       if (extractedText) {
+        logger.llm('onemin', this.model, userQuestion, extractedText, duration, true);
         return extractedText;
       }
 
-      // 5. Fallback: Nếu cấu trúc thay đổi, cố gắng tìm text ở các trường khác
-      // Đôi khi nó nằm ở output hoặc result
+      // 4. Fallback: Nếu cấu trúc thay đổi, cố gắng tìm text ở các trường khác
       const fallbackText = rawData?.output || rawData?.result || rawData?.text;
-      if (fallbackText) return fallbackText;
+      if (fallbackText) {
+        logger.llm('onemin', this.model, userQuestion, fallbackText, duration, true);
+        return fallbackText;
+      }
 
-      // Nếu vẫn không lấy được, trả về lỗi để không hiện cục JSON xấu xí
-      console.warn(
-        "[1minAI] Cannot extract text from:",
-        JSON.stringify(rawData)
-      );
+      // Nếu vẫn không lấy được, trả về lỗi
+      logger.warn('1minAI', 'Cannot extract text from response', { rawDataKeys: Object.keys(rawData || {}) });
+      logger.llm('onemin', this.model, userQuestion, null, duration, false, 'Cannot extract text from response');
       return "Xin lỗi, tôi đã có câu trả lời nhưng gặp lỗi định dạng hiển thị.";
+
     } catch (error) {
-      console.error(
-        "[1minAI] Error:",
-        error.response ? error.response.data : error.message
-      );
+      const duration = Date.now() - startTime;
+      const errorMsg = error.response?.data?.message || error.message;
+
+      logger.error('1minAI', 'API Error', { error: errorMsg });
+      logger.llm('onemin', this.model, userQuestion, null, duration, false, errorMsg);
+
       throw new Error("1minAI Provider Failed");
     }
   }
