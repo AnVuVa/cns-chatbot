@@ -64,6 +64,17 @@ class MessengerAdapter {
     }
 
     /**
+     * Reply to a message (same as send - Facebook doesn't support reply threading in Send API)
+     * @param {string} recipientId - Facebook PSID of recipient
+     * @param {string} text - Reply text
+     * @param {string} originalMessageId - Not used, kept for compatibility
+     */
+    async replyToMessage(recipientId, text, originalMessageId) {
+        // Note: Facebook Send API doesn't support reply_to parameter
+        return this.sendTextMessage(recipientId, text);
+    }
+
+    /**
      * Send typing indicator (shows "..." in chat)
      * @param {string} recipientId - Facebook PSID
      * @param {boolean} isTyping - true to show typing, false to hide

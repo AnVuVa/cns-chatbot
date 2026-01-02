@@ -21,7 +21,7 @@ class MessengerService {
             return;
         }
 
-        const { senderId, text, type } = parsedEvent;
+        const { senderId, text, type, messageId } = parsedEvent;
 
         logger.info('Messenger', `Incoming ${type} from ${senderId}`, { text: text?.substring(0, 100) });
 
@@ -59,8 +59,8 @@ class MessengerService {
             // Turn off typing indicator
             await messengerAdapter.sendTypingIndicator(senderId, false);
 
-            // Send response back to user
-            await messengerAdapter.sendTextMessage(senderId, response);
+            // Send response back to user - REPLY to original message (P3)
+            await messengerAdapter.replyToMessage(senderId, response, messageId);
 
             const latency = Date.now() - startTime;
             logger.info('Messenger', `Response sent to ${senderId}`, { latency_ms: latency });
