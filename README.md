@@ -228,6 +228,9 @@ npm run ingest
 **Development** (Auto-restart):
 ```bash
 npm run dev
+
+# Expose port 3000
+ngrok http 3000
 ```
 
 **Production**:
