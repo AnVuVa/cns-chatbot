@@ -1,98 +1,186 @@
 {
 	"info": {
 		"_postman_id": "b6a7b3c2-1234-4567-8910-abcdef123456",
-		"name": "Enterprise Hybrid Chatbot API",
-		"description": "Collection test API cho hệ thống Chatbot Hybrid (RAG + 1minAI/Gemini)",
+		"name": "CNS Chatbot API v1.2.0",
+		"description": "API collection cho hệ thống Chatbot Hybrid (RAG + Mistral/Gemini/1min.ai) với Facebook Messenger integration",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "1234567"
 	},
 	"item": [
 		{
-			"name": "Chat Message (REST)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json",
-						"type": "text"
+			"name": "Chat",
+			"item": [
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"test_user_01\",\n    \"question\": \"Xin chào, bạn có thể giúp gì?\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/chat/message",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat",
+								"message"
+							]
+						},
+						"description": "Gửi tin nhắn chat.\n\nPayload:\n- userId: ID người dùng\n- question: Câu hỏi\n- sessionId (Optional): ID phiên chat"
 					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"userId\": \"test_user_01\",\n    \"question\": \"Bạn có thể làm thơ lục bát không?\"\n}"
 				},
-				"url": {
-					"raw": "{{base_url}}/api/chat/message",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"chat",
-						"message"
-					]
-				},
-				"description": "Gửi tin nhắn chat tới Bot.\n\nPayload:\n- userId: ID người dùng (dùng để định tuyến).\n- question: Câu hỏi.\n- sessionId (Optional): Nếu không gửi, server tự tạo mới."
-			},
-			"response": []
+				{
+					"name": "Send Message with Session",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"test_user_01\",\n    \"sessionId\": \"<PASTE_SESSION_ID>\",\n    \"question\": \"Tên tôi là gì?\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/chat/message",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"chat",
+								"message"
+							]
+						},
+						"description": "Tiếp tục hội thoại với sessionId để test conversation memory."
+					}
+				}
+			]
 		},
 		{
-			"name": "Chat Message (With Session)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json",
-						"type": "text"
+			"name": "Messenger Webhook",
+			"item": [
+				{
+					"name": "Verify Webhook",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/webhook/messenger?hub.mode=subscribe&hub.verify_token={{verify_token}}&hub.challenge=CHALLENGE_CODE",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"webhook",
+								"messenger"
+							],
+							"query": [
+								{
+									"key": "hub.mode",
+									"value": "subscribe"
+								},
+								{
+									"key": "hub.verify_token",
+									"value": "{{verify_token}}"
+								},
+								{
+									"key": "hub.challenge",
+									"value": "CHALLENGE_CODE"
+								}
+							]
+						},
+						"description": "Facebook webhook verification endpoint."
 					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"userId\": \"test_user_01\",\n    \"sessionId\": \"<PASTE_SESSION_ID_HERE>\",\n    \"question\": \"Quy trình bảo hành thế nào?\"\n}"
 				},
-				"url": {
-					"raw": "{{base_url}}/api/chat/message",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"chat",
-						"message"
-					]
-				},
-				"description": "Tiếp tục hội thoại cũ bằng cách gửi kèm sessionId."
-			},
-			"response": []
-		}
-	],
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
+				{
+					"name": "Simulate Messenger Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"object\": \"page\",\n    \"entry\": [{\n        \"messaging\": [{\n            \"sender\": {\"id\": \"TEST_PSID\"},\n            \"message\": {\"text\": \"Hello bot\"}\n        }]\n    }]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/webhook/messenger",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"webhook",
+								"messenger"
+							]
+						},
+						"description": "Simulate a Messenger webhook event (for testing)."
+					}
+				}
+			]
 		},
 		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
+			"name": "Statistics",
+			"item": [
+				{
+					"name": "Get Messenger Stats",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/stats/messenger",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"stats",
+								"messenger"
+							]
+						},
+						"description": "Get Messenger usage statistics."
+					}
+				},
+				{
+					"name": "Get Chat Stats",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/stats/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"stats",
+								"chat"
+							]
+						},
+						"description": "Get overall chat statistics."
+					}
+				}
+			]
 		}
 	],
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "http://localhost:3000",
-			"type": "string"
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "verify_token",
+			"value": "my_secret_verify_token_2024"
 		}
 	]
 }

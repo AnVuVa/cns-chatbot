@@ -35,17 +35,17 @@ async function generateEmbedding(text) {
 // 2. Hàm đọc nội dung file theo định dạng
 async function extractTextFromFile(filePath) {
     const ext = path.extname(filePath).toLowerCase();
-    
+
     try {
         if (ext === '.pdf') {
             const dataBuffer = fs.readFileSync(filePath);
             const data = await pdf(dataBuffer);
             return data.text; // Có thể lấy data.numpages để lưu metadata nếu muốn
-        } 
+        }
         else if (ext === '.docx') {
             const result = await mammoth.extractRawText({ path: filePath });
             return result.value;
-        } 
+        }
         else if (ext === '.txt' || ext === '.md' || ext === '.json') {
             return fs.readFileSync(filePath, 'utf-8');
         }
@@ -61,7 +61,7 @@ async function processKnowledgeBase() {
     console.log(`🚀 Bắt đầu quét thư mục: ${SOURCE_DIR}`);
 
     // Tìm tất cả file trong thư mục và thư mục con
-    const files = glob.sync(`${SOURCE_DIR}/**/*.{txt,md,pdf,docx}`);
+    const files = glob.sync(`${SOURCE_DIR}/**/*.{txt,md,pdf,docx,json}`);
     console.log(`📦 Tìm thấy ${files.length} tài liệu.`);
 
     // Bộ cắt text thông minh
@@ -91,7 +91,7 @@ async function processKnowledgeBase() {
 
         // 4. Batch Insert (Xử lý từng cụm để tiết kiệm RAM và Network)
         let processedCount = 0;
-        
+
         while (processedCount < chunks.length) {
             const batch = chunks.slice(processedCount, processedCount + BATCH_SIZE);
             const recordsToInsert = [];
@@ -104,8 +104,8 @@ async function processKnowledgeBase() {
                         content: chunkContent,
                         embedding: vector,
                         source_type: path.extname(filePath).replace('.', ''), // 'pdf', 'docx'
-                        metadata: { 
-                            filename: fileName, 
+                        metadata: {
+                            filename: fileName,
                             path: filePath,
                             chunk_index: processedCount // Để truy vết thứ tự nếu cần
                         }

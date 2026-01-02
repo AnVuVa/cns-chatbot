@@ -10,7 +10,7 @@ class MistralProvider extends IAIProvider {
     constructor() {
         super();
         this.apiKey = process.env.MISTRAL_API_KEY;
-        this.model = process.env.MISTRAL_MODEL || "mistral-small-latest";
+        this.model = process.env.MISTRAL_MODEL || "mistral-small-2506";
         this.baseUrl = "https://api.mistral.ai/v1";
     }
 
@@ -26,20 +26,20 @@ class MistralProvider extends IAIProvider {
         const startTime = Date.now();
 
         try {
+            // Log API key for development debugging
+            // logger.info('MistralAI', `API Key: ${this.apiKey}`);
             logger.info('MistralAI', `Sending request with model: ${this.model}`);
 
             const response = await axios.post(
                 `${this.baseUrl}/chat/completions`,
                 {
-                    model: this.model,
                     messages: [
                         {
                             role: "user",
                             content: prompt
                         }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 1024
+                    model: this.model
                 },
                 {
                     headers: {
@@ -81,6 +81,10 @@ class MistralProvider extends IAIProvider {
      */
     async generateEmbedding(text) {
         try {
+            // Log API key for development debugging
+            // logger.info('MistralAI', `Embedding API Key: ${this.apiKey}`);
+            logger.info('MistralAI', `Sending embedding request with model: mistral-embed`);
+
             const response = await axios.post(
                 `${this.baseUrl}/embeddings`,
                 {

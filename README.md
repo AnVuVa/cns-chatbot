@@ -24,6 +24,12 @@ Hệ thống **Backend Chatbot doanh nghiệp hiệu năng cao**, sử dụng ki
     - Webhook verification & event handling
     - Real-time message processing
     - Typing indicators
+    - Reply-to-message (quotes original question)
+
+* **Conversation Memory:** 🆕
+    - 30-minute session context
+    - Automatic session archiving
+    - Multi-user concurrent support
 
 * **Smart Ingestion Pipeline:** Hỗ trợ nạp dữ liệu từ file `.txt`, `.pdf`, `.docx`, `.md`.
 
@@ -31,7 +37,7 @@ Hệ thống **Backend Chatbot doanh nghiệp hiệu năng cao**, sử dụng ki
 
 * **Comprehensive Logging System:** 🆕
     - `logs/request_<date>.log` - HTTP requests
-    - `logs/system_log_<date>.log` - System events
+    - `logs/system_log_<date>.log` - System events + performance timing
     - `logs/llm_<date>.log` - LLM input/output
 
 * **Real-time:** Hỗ trợ giao tiếp qua **WebSocket (Socket.io)**.
@@ -333,6 +339,13 @@ Chỉnh sửa file `src/config/prompts.js` để thay đổi:
 
 ## 📝 Changelog
 
+### v1.2.0 (2026-01-02)
+- 🆕 **Conversation Memory** - Bot now remembers context within 30-minute sessions
+- 🆕 **Reply-to-Message** - Messenger responses quote the original user message
+- 🆕 **Performance Monitoring** - Detailed timing for each pipeline stage (cache, RAG, LLM)
+- 🆕 **Conversation Archive** - Expired sessions saved to database for training
+- 🆕 **Multi-user Support** - Concurrent conversations via in-memory Map storage
+
 ### v1.1.0 (2026-01-01)
 - 🆕 **Facebook Messenger Integration** - Webhook, message handling
 - 🆕 **Mistral AI Provider** - LLM + Embeddings support
@@ -346,15 +359,3 @@ Chỉnh sửa file `src/config/prompts.js` để thay đổi:
 - RAG with Supabase pgvector
 - Redis caching layer
 - WebSocket real-time support
-
----
-
-## 🛡 Disclaimer
-
-Dự án sử dụng các **API bên thứ 3** (Mistral AI, Google Gemini, 1min.ai, Facebook). Hãy đảm bảo tuân thủ **chính sách sử dụng** và **hạn mức (Quota)** của các nhà cung cấp này.
-
----
-
-## 📄 License
-
-MIT License
